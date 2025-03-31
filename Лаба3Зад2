@@ -1,0 +1,394 @@
+#define _CRT_SECURE_NO_WARNINGS
+
+/*
+Лабораторная работа No3. Поля бит. Структуры.
+Задание 2: Работа со структурой сериалов через динамический массив.
+Студент: Волкович Ника
+Дата: 31.03.2025
+*/
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <locale.h>
+#include "tvshow.h"
+
+#define FILENAME "tvshows.txt"
+#define BUFFER_SIZE 100
+
+int main(void) {
+    // Устанавливаем русскую локаль без проверки результата
+    setlocale(LC_ALL, "Rus");
+
+    TVShow* shows = NULL;  // Указатель на динамический массив сериалов
+    int count = 0;         // Количество сериалов
+    int choice;            // Выбор пункта меню
+    char buffer[BUFFER_SIZE];
+
+    // Основной цикл меню программы
+    while (1) {
+        printf("\n======== МЕНЮ ========\n");
+        printf("1. Добавить новый сериал\n");
+        printf("2. Вывести список всех сериалов\n");
+        printf("3. Поиск сериалов (количество серий меньше заданного)\n");
+        printf("4. Удалить сериал(ы) по названию\n");
+        printf("5. Сортировать сериалы по количеству серий\n");
+        printf("6. Сохранить список сериалов в файл\n");
+        printf("7. Загрузить список сериалов из файла\n");
+        printf("8. Выход\n");
+        printf("Выберите пункт меню (1-8): ");
+
+        if (scanf_s("%d", &choice) != 1) {
+            printf("Ошибка ввода! Введите число от 1 до 8.\n");
+            while (getchar() != '\n');  // Очищаем поток
+            continue;
+        }
+        while (getchar() != '\n');  // Очищаем остаток после ввода числа
+
+        switch (choice) {
+        case 1: {
+            // Расширяем динамический массив для нового сериала с явным приведением типа
+            TVShow* temp = (TVShow*)realloc(shows, (count + 1) * sizeof(TVShow));
+            if (!temp) {
+                printf("Ошибка выделения памяти!\n");
+                break;
+            }
+            shows = temp;
+            printf("\n--- Ввод данных нового сериала ---\n");
+            inputTVShowFields(&shows[count]);
+
+            // Ввод даты выхода сериала
+            printf("Введите дату выхода (формат dd.mm.yyyy): ");
+            if (fgets(buffer, BUFFER_SIZE, stdin) == NULL) {
+                printf("Ошибка ввода даты!\n");
+                exit(EXIT_FAILURE);
+            }
+            buffer[strcspn(buffer, "\n")] = '\0';
+            strncpy(shows[count].relDate.date, buffer, DATE_LENGTH - 1);
+            shows[count].relDate.date[DATE_LENGTH - 1] = '\0';
+
+            // Ввод количества сезонов
+            printf("Введите количество сезонов: ");
+            while (scanf_s("%d", &shows[count].numSeasons) != 1) {
+                printf("Ошибка ввода! Введите целое число для количества сезонов: ");
+                while (getchar() != '\n');
+            }
+            while (getchar() != '\n');
+            count++;
+            break;
+        }
+        case 2: {
+            printf("\n--- Список всех сериалов ---\n");
+            if (count == 0) {
+                printf("Список сериалов пуст.\n");
+            }
+            else {
+                for (int i = 0; i < count; i++) {
+                    printf("----------------------------\n");
+                    printf("Сериал №%d:\n", i + 1);
+                    printf("Количество серий: %d\n", shows[i].numEpisodes);
+                    printf("Название: %s\n", shows[i].title);
+                    printf("Дата выхода: %s\n", shows[i].relDate.date);
+                    printf("Количество сезонов: %d\n", shows[i].numSeasons);
+                }
+            }
+            break;
+        }
+        case 3: {
+            if (count == 0) {
+                printf("Список сериалов пуст.\n");
+            }
+            else {
+                int threshold;
+                printf("Введите порог количества серий: ");
+                while (scanf_s("%d", &threshold) != 1) {
+                    printf("Ошибка ввода! Введите целое число: ");
+                    while (getchar() != '\n');
+                }
+                while (getchar() != '\n');
+                searchTVShowsByEpisodes(shows, count, threshold);
+            }
+            break;
+        }
+        case 4: {
+            if (count == 0) {
+                printf("Список сериалов пуст.\n");
+            }
+            else {
+                printf("Введите название сериала для удаления: ");
+                if (fgets(buffer, BUFFER_SIZE, stdin) == NULL) {
+                    printf("Ошибка ввода!\n");
+                    break;
+                }
+                buffer[strcspn(buffer, "\n")] = '\0';
+                int oldCount = count;
+                deleteTVShowsByTitle(shows, &count, buffer);
+                if (oldCount == count)
+                    printf("Сериал с названием \"%s\" не найден.\n", buffer);
+                else
+                    printf("Сериал(ы) с названием \"%s\" удалены.\n", buffer);
+            }
+            break;
+        }
+        case 5: {
+            if (count == 0) {
+                printf("Список сериалов пуст.\n");
+            }
+            else {
+                sortTVShowsByEpisodes(shows, count);
+                printf("Сериалы отсортированы по количеству серий.\n");
+            }
+            break;
+        }
+        case 6: {
+            saveTVShowsToFile(shows, count, FILENAME);
+            break;
+        }
+        case 7: {
+            if (count > 0) {
+                freeTVShows(shows, count);
+                shows = NULL;
+                count = 0;
+            }
+            count = loadTVShowsFromFile(&shows, FILENAME);
+            break;
+        }
+        case 8: {
+            freeTVShows(shows, count);
+            printf("Выход из программы.\n");
+            return 0;
+        }
+        default:
+            printf("Неверный выбор. Введите число от 1 до 8.\n");
+            break;
+        }
+    }
+
+    return 0;
+}
+#ifndef TVSHOW_H
+#define TVSHOW_H
+
+#define DATE_LENGTH 11     // Формат "dd.mm.yyyy": 10 символов + '\0'
+#define BUFFER_SIZE 100    // Размер буфера для ввода строк
+
+/*
+Лабораторная работа No3. Поля бит. Структуры.
+Задание 2: Работа со структурой сериалов.
+Студент: Волкович Ника
+Дата: 31.03.2025
+
+Описание задания:
+Структура TVShow содержит следующие поля:
+ - Количество серий (целое число)
+ - Название (динамически выделенная строка)
+ - Вложенная структура ReleaseDate для даты выхода (формат "dd.mm.yyyy")
+ - Количество сезонов (целое число)
+
+Также здесь объявлены функции для:
+ - Ввода и вывода данных
+ - Поиска по количеству серий
+ - Удаления по названию
+ - Сортировки, сохранения и загрузки данных из файла
+*/
+
+// Структура для хранения даты выхода (формат: dd.mm.yyyy)
+typedef struct {
+    char date[DATE_LENGTH];
+} ReleaseDate;
+
+// Основная структура для информации о сериале
+typedef struct {
+    int numEpisodes;     // Количество серий
+    char* title;         // Название сериала (динамически выделенная строка)
+    ReleaseDate relDate; // Дата выхода (вложенная структура)
+    int numSeasons;      // Количество сезонов
+} TVShow;
+
+// Прототипы функций для работы со структурами сериалов
+void inputTVShowFields(TVShow* show);
+void outputTVShowFields(const TVShow* show);
+void searchTVShowsByEpisodes(TVShow* shows, int count, int threshold);
+void deleteTVShowsByTitle(TVShow* shows, int* count, const char* delTitle);
+void sortTVShowsByEpisodes(TVShow* shows, int count);
+void saveTVShowsToFile(TVShow* shows, int count, const char* filename);
+int loadTVShowsFromFile(TVShow** shows, const char* filename);
+void freeTVShows(TVShow* shows, int count);
+
+#endif
+#define _CRT_SECURE_NO_WARNINGS
+
+/*
+Лабораторная работа No3. Поля бит. Структуры.
+Задание 2: Работа со структурой сериалов.
+Студент: Волкович Ника
+Дата: 31.03.2025
+*/
+
+#include "tvshow.h"
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+// Функция для ввода количества серий и названия сериала.
+// Считывает данные с клавиатуры и выделяет память для названия.
+void inputTVShowFields(TVShow* show) {
+    char buffer[BUFFER_SIZE];
+
+    printf("Введите количество серий: ");
+    while (scanf_s("%d", &show->numEpisodes) != 1) {
+        printf("Ошибка ввода! Введите целое число для количества серий: ");
+        while (getchar() != '\n');  // Очищаем поток ввода
+    }
+    while (getchar() != '\n');  // Очищаем остаток после числа
+
+    printf("Введите название сериала: ");
+    if (fgets(buffer, BUFFER_SIZE, stdin) == NULL) {
+        printf("Ошибка ввода названия!\n");
+        exit(EXIT_FAILURE);
+    }
+    // Удаляем символ перевода строки, если он присутствует
+    buffer[strcspn(buffer, "\n")] = '\0';
+
+    // Выделяем память для хранения названия сериала с явным приведением типа
+    show->title = (char*)malloc((strlen(buffer) + 1) * sizeof(char));
+    if (!show->title) {
+        printf("Ошибка выделения памяти для названия сериала!\n");
+        exit(EXIT_FAILURE);
+    }
+    strcpy(show->title, buffer);
+}
+
+// Функция для вывода количества серий и названия сериала на экран.
+void outputTVShowFields(const TVShow* show) {
+    printf("Количество серий: %d\n", show->numEpisodes);
+    printf("Название сериала: %s\n", show->title);
+}
+
+// Функция для поиска и вывода сериалов с количеством серий, меньше заданного.
+void searchTVShowsByEpisodes(TVShow* shows, int count, int threshold) {
+    int found = 0;
+    printf("\nСериалы с количеством серий меньше %d:\n", threshold);
+    for (int i = 0; i < count; i++) {
+        if (shows[i].numEpisodes < threshold) {
+            found = 1;
+            printf("----------------------------\n");
+            printf("Сериал №%d:\n", i + 1);
+            printf("Количество серий: %d\n", shows[i].numEpisodes);
+            printf("Название: %s\n", shows[i].title);
+            printf("Дата выхода: %s\n", shows[i].relDate.date);
+            printf("Количество сезонов: %d\n", shows[i].numSeasons);
+        }
+    }
+    if (!found)
+        printf("Сериалов, удовлетворяющих условию, не найдено.\n");
+}
+
+// Функция для удаления сериалов с заданным названием.
+// Если название совпадает, память освобождается, а оставшиеся элементы сдвигаются.
+void deleteTVShowsByTitle(TVShow* shows, int* count, const char* delTitle) {
+    int i = 0;
+    int newCount = *count;
+    while (i < newCount) {
+        if (strcmp(shows[i].title, delTitle) == 0) {
+            free(shows[i].title);
+            for (int j = i; j < newCount - 1; j++) {
+                shows[j] = shows[j + 1];
+            }
+            newCount--;
+        }
+        else {
+            i++;
+        }
+    }
+    *count = newCount;
+}
+
+// Вспомогательная функция сравнения для qsort (сравнивает по количеству серий).
+static int compareTVShows(const void* a, const void* b) {
+    const TVShow* showA = (const TVShow*)a;
+    const TVShow* showB = (const TVShow*)b;
+    return showA->numEpisodes - showB->numEpisodes;
+}
+
+// Функция для сортировки массива сериалов по количеству серий (по возрастанию).
+void sortTVShowsByEpisodes(TVShow* shows, int count) {
+    qsort(shows, count, sizeof(TVShow), compareTVShows);
+}
+
+// Функция для сохранения списка сериалов в текстовый файл.
+// В файл записывается сначала общее количество сериалов, затем данные каждого из них.
+void saveTVShowsToFile(TVShow* shows, int count, const char* filename) {
+    FILE* fp = fopen(filename, "w");
+    if (!fp) {
+        perror("Ошибка открытия файла для записи");
+        return;
+    }
+    fprintf(fp, "%d\n", count);
+    for (int i = 0; i < count; i++) {
+        fprintf(fp, "%d\n", shows[i].numEpisodes);
+        fprintf(fp, "%s\n", shows[i].title);
+        fprintf(fp, "%s\n", shows[i].relDate.date);
+        fprintf(fp, "%d\n", shows[i].numSeasons);
+    }
+    fclose(fp);
+    printf("Данные сохранены в файл \"%s\".\n", filename);
+}
+
+// Функция для загрузки списка сериалов из текстового файла.
+// Сначала считывается число сериалов, затем данные каждого сериала.
+int loadTVShowsFromFile(TVShow** shows, const char* filename) {
+    FILE* fp = fopen(filename, "r");
+    if (!fp) {
+        perror("Ошибка открытия файла для чтения");
+        return 0;
+    }
+    int count;
+    if (fscanf_s(fp, "%d", &count) != 1) {
+        fclose(fp);
+        return 0;
+    }
+    while (fgetc(fp) != '\n'); // Очищаем остаток строки
+
+    // Выделяем память под массив структур с явным приведением типа
+    *shows = (TVShow*)malloc(count * sizeof(TVShow));
+    if (*shows == NULL) {
+        fclose(fp);
+        perror("Ошибка выделения памяти при загрузке данных");
+        return 0;
+    }
+
+    char buffer[BUFFER_SIZE];
+    for (int i = 0; i < count; i++) {
+        fscanf_s(fp, "%d", &((*shows)[i].numEpisodes));
+        while (fgetc(fp) != '\n');
+
+        if (fgets(buffer, BUFFER_SIZE, fp) == NULL)
+            break;
+        buffer[strcspn(buffer, "\n")] = '\0';
+        (*shows)[i].title = (char*)malloc(strlen(buffer) + 1);
+        if (!((*shows)[i].title)) {
+            perror("Ошибка выделения памяти для названия");
+            break;
+        }
+        strcpy((*shows)[i].title, buffer);
+
+        if (fgets((*shows)[i].relDate.date, DATE_LENGTH, fp) == NULL)
+            break;
+        (*shows)[i].relDate.date[strcspn((*shows)[i].relDate.date, "\n")] = '\0';
+
+        fscanf_s(fp, "%d", &((*shows)[i].numSeasons));
+        while (fgetc(fp) != '\n');
+    }
+    fclose(fp);
+    printf("Данные загружены из файла \"%s\".\n", filename);
+    return count;
+}
+
+// Функция для освобождения памяти, выделенной для списка сериалов.
+void freeTVShows(TVShow* shows, int count) {
+    for (int i = 0; i < count; i++) {
+        free(shows[i].title);
+    }
+    free(shows);
+}
