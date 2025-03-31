@@ -1,0 +1,52 @@
+#pragma once
+#ifndef TVSHOW_H
+#define TVSHOW_H
+
+#define DATE_LENGTH 11     // Формат "dd.mm.yyyy": 10 символов + '\0'
+#define BUFFER_SIZE 100    // Размер буфера для ввода строк
+
+/*
+Лабораторная работа No3. Поля бит. Структуры.
+Задание 2: Работа со структурой сериалов.
+Студент: Волкович Ника
+Дата: 31.03.2025
+
+Описание задания:
+Структура TVShow содержит следующие поля:
+ - Количество серий (целое число)
+ - Название (динамически выделенная строка)
+ - Вложенная структура ReleaseDate для даты выхода (формат "dd.mm.yyyy")
+ - Количество сезонов (целое число)
+
+Также здесь объявлены функции для:
+ - Ввода и вывода данных
+ - Поиска по количеству серий
+ - Удаления по названию
+ - Сортировки, сохранения и загрузки данных из файла
+*/
+
+// Структура для хранения даты выхода (формат: dd.mm.yyyy)
+typedef struct {
+    char date[DATE_LENGTH];
+} ReleaseDate;
+
+// Основная структура для информации о сериале
+typedef struct {
+    int numEpisodes;     // Количество серий
+    char* title;         // Название сериала (динамически выделенная строка)
+    ReleaseDate relDate; // Дата выхода (вложенная структура)
+    int numSeasons;      // Количество сезонов
+} TVShow;
+
+// Прототипы функций для работы со структурами сериалов
+void inputTVShowFields(TVShow* show);
+void outputTVShowFields(const TVShow* show);
+void searchTVShowsByEpisodes(TVShow* shows, int count, int threshold);
+void deleteTVShowsByTitle(TVShow* shows, int* count, const char* delTitle);
+void sortTVShowsByEpisodes(TVShow* shows, int count);
+void saveTVShowsToFile(TVShow* shows, int count, const char* filename);
+int loadTVShowsFromFile(TVShow** shows, const char* filename);
+void freeTVShows(TVShow* shows, int count);
+
+#endif
+
