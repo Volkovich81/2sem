@@ -1,0 +1,177 @@
+#pragma once
+#define _CRT_SECURE_NO_WARNINGS
+
+/*
+Лабораторная работа No3. Поля бит. Структуры.
+Задание 2: Работа со структурой сериалов.
+Студент: Волкович Ника
+Дата: 31.03.2025
+*/
+
+#include "tvshow.h"
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+// Функция для ввода количества серий и названия сериала.
+// Считывает данные с клавиатуры и выделяет память для названия.
+void inputTVShowFields(TVShow* show) {
+    char buffer[BUFFER_SIZE];
+
+    printf("Введите количество серий: ");
+    while (scanf_s("%d", &show->numEpisodes) != 1) {
+        printf("Ошибка ввода! Введите целое число для количества серий: ");
+        while (getchar() != '\n');  // Очищаем поток ввода
+    }
+    while (getchar() != '\n');  // Очищаем остаток после числа
+
+    printf("Введите название сериала: ");
+    if (fgets(buffer, BUFFER_SIZE, stdin) == NULL) {
+        printf("Ошибка ввода названия!\n");
+        exit(EXIT_FAILURE);
+    }
+    // Удаляем символ перевода строки, если он присутствует
+    buffer[strcspn(buffer, "\n")] = '\0';
+
+    // Выделяем память для хранения названия сериала с явным приведением типа
+    show->title = (char*)malloc((strlen(buffer) + 1) * sizeof(char));
+    if (!show->title) {
+        printf("Ошибка выделения памяти для названия сериала!\n");
+        exit(EXIT_FAILURE);
+    }
+    strcpy(show->title, buffer);
+}
+
+// Функция для вывода количества серий и названия сериала на экран.
+void outputTVShowFields(const TVShow* show) {
+    printf("Количество серий: %d\n", show->numEpisodes);
+    printf("Название сериала: %s\n", show->title);
+}
+
+// Функция для поиска и вывода сериалов с количеством серий, меньше заданного.
+void searchTVShowsByEpisodes(TVShow* shows, int count, int threshold) {
+    int found = 0;
+    printf("\nСериалы с количеством серий меньше %d:\n", threshold);
+    for (int i = 0; i < count; i++) {
+        if (shows[i].numEpisodes < threshold) {
+            found = 1;
+            printf("----------------------------\n");
+            printf("Сериал №%d:\n", i + 1);
+            printf("Количество серий: %d\n", shows[i].numEpisodes);
+            printf("Название: %s\n", shows[i].title);
+            printf("Дата выхода: %s\n", shows[i].relDate.date);
+            printf("Количество сезонов: %d\n", shows[i].numSeasons);
+        }
+    }
+    if (!found)
+        printf("Сериалов, удовлетворяющих условию, не найдено.\n");
+}
+
+// Функция для удаления сериалов с заданным названием.
+// Если название совпадает, память освобождается, а оставшиеся элементы сдвигаются.
+void deleteTVShowsByTitle(TVShow* shows, int* count, const char* delTitle) {
+    int i = 0;
+    int newCount = *count;
+    while (i < newCount) {
+        if (strcmp(shows[i].title, delTitle) == 0) {
+            free(shows[i].title);
+            for (int j = i; j < newCount - 1; j++) {
+                shows[j] = shows[j + 1];
+            }
+            newCount--;
+        }
+        else {
+            i++;
+        }
+    }
+    *count = newCount;
+}
+
+// Вспомогательная функция сравнения для qsort (сравнивает по количеству серий).
+static int compareTVShows(const void* a, const void* b) {
+    const TVShow* showA = (const TVShow*)a;
+    const TVShow* showB = (const TVShow*)b;
+    return showA->numEpisodes - showB->numEpisodes;
+}
+
+// Функция для сортировки массива сериалов по количеству серий (по возрастанию).
+void sortTVShowsByEpisodes(TVShow* shows, int count) {
+    qsort(shows, count, sizeof(TVShow), compareTVShows);
+}
+
+// Функция для сохранения списка сериалов в текстовый файл.
+// В файл записывается сначала общее количество сериалов, затем данные каждого из них.
+void saveTVShowsToFile(TVShow* shows, int count, const char* filename) {
+    FILE* fp = fopen(filename, "w");
+    if (!fp) {
+        perror("Ошибка открытия файла для записи");
+        return;
+    }
+    fprintf(fp, "%d\n", count);
+    for (int i = 0; i < count; i++) {
+        fprintf(fp, "%d\n", shows[i].numEpisodes);
+        fprintf(fp, "%s\n", shows[i].title);
+        fprintf(fp, "%s\n", shows[i].relDate.date);
+        fprintf(fp, "%d\n", shows[i].numSeasons);
+    }
+    fclose(fp);
+    printf("Данные сохранены в файл \"%s\".\n", filename);
+}
+
+// Функция для загрузки списка сериалов из текстового файла.
+// Сначала считывается число сериалов, затем данные каждого сериала.
+int loadTVShowsFromFile(TVShow** shows, const char* filename) {
+    FILE* fp = fopen(filename, "r");
+    if (!fp) {
+        perror("Ошибка открытия файла для чтения");
+        return 0;
+    }
+    int count;
+    if (fscanf_s(fp, "%d", &count) != 1) {
+        fclose(fp);
+        return 0;
+    }
+    while (fgetc(fp) != '\n'); // Очищаем остаток строки
+
+    // Выделяем память под массив структур с явным приведением типа
+    *shows = (TVShow*)malloc(count * sizeof(TVShow));
+    if (*shows == NULL) {
+        fclose(fp);
+        perror("Ошибка выделения памяти при загрузке данных");
+        return 0;
+    }
+
+    char buffer[BUFFER_SIZE];
+    for (int i = 0; i < count; i++) {
+        fscanf_s(fp, "%d", &((*shows)[i].numEpisodes));
+        while (fgetc(fp) != '\n');
+
+        if (fgets(buffer, BUFFER_SIZE, fp) == NULL)
+            break;
+        buffer[strcspn(buffer, "\n")] = '\0';
+        (*shows)[i].title = (char*)malloc(strlen(buffer) + 1);
+        if (!((*shows)[i].title)) {
+            perror("Ошибка выделения памяти для названия");
+            break;
+        }
+        strcpy((*shows)[i].title, buffer);
+
+        if (fgets((*shows)[i].relDate.date, DATE_LENGTH, fp) == NULL)
+            break;
+        (*shows)[i].relDate.date[strcspn((*shows)[i].relDate.date, "\n")] = '\0';
+
+        fscanf_s(fp, "%d", &((*shows)[i].numSeasons));
+        while (fgetc(fp) != '\n');
+    }
+    fclose(fp);
+    printf("Данные загружены из файла \"%s\".\n", filename);
+    return count;
+}
+
+// Функция для освобождения памяти, выделенной для списка сериалов.
+void freeTVShows(TVShow* shows, int count) {
+    for (int i = 0; i < count; i++) {
+        free(shows[i].title);
+    }
+    free(shows);
+}
