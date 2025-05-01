@@ -1,0 +1,115 @@
+/* Лабораторная работа №5. ПОНЯТИЕ СТЕКА. ОПЕРАЦИИ НАД СТЕКОМ
+   Задание: Создать стек для целых чисел. Максимальный размер стека вводится с экрана.
+   Найти максимальный элемент стека.
+   Фамилия студента: Волкович Ника Ивановна
+   Дата написания: 25.04.2025
+*/
+
+#include <stdio.h>
+#include <stdlib.h>
+#include "stack.h" 
+#include <locale.h>
+
+int inputInteger();
+
+int main() {
+    setlocale(LC_ALL, "Rus");
+    Stack stack;
+    int maxSize;
+    int max = -1; 
+
+    printf("Введите максимальный размер стека: ");
+    while (1) {
+        maxSize = inputInteger();
+        if (maxSize <= 0) {
+            printf("Ошибка: максимальный размер должен быть положительным числом.\n");
+        }
+        else {
+            break;
+        }
+    }
+
+    initStack(&stack, maxSize);
+
+    printf("Введите числа для добавления в стек (введите -1 для завершения):\n");
+    int value, count = 0;
+    while (count < maxSize) {
+        value = inputInteger();
+        if (value == -1) break;
+        if (!push(&stack, value)) {
+            printf("Ошибка: стек переполнен. Осталось ввести ещё %d чисел.\n", maxSize - count);
+        }
+        else {
+            if (value > max) {
+                max = value; 
+            }
+            count++;
+        }
+    }
+
+    if (count < maxSize) {
+        printf("Вы заполнили стек не полностью. Осталось ввести ещё %d чисел:\n", maxSize - count);
+        while (count < maxSize) {
+            value = inputInteger();
+            push(&stack, value);
+            if (value > max) {
+                max = value; 
+            }
+            count++;
+        }
+    }
+
+    displayStack(&stack);
+
+    if (max != -1) {
+        printf("Максимальный элемент стека: %d\n", max);
+    }
+
+    free(stack.data);
+
+    return 0;
+}
+
+int inputInteger() {
+    char buffer[100];
+    int value;
+    while (1) {
+        fgets(buffer, sizeof(buffer), stdin);
+        buffer[strcspn(buffer, "\n")] = '\0';
+
+        if (strlen(buffer) == 0) {
+            printf("Ошибка ввода. Пустая строка недопустима. Повторите ввод: ");
+            continue;
+        }
+
+        int isValid = 1, hasDecimal = 0;
+        for (int i = 0; i < strlen(buffer); i++) {
+            if (!isdigit(buffer[i]) && buffer[i] != '-' && buffer[i] != '+' && buffer[i] != '.') {
+                isValid = 0;
+                break;
+            }
+            if (buffer[i] == '.') {
+                hasDecimal = 1;
+            }
+        }
+        if (!isValid) {
+            printf("Ошибка ввода. Допустимы только цифры и знак. Повторите ввод: ");
+            continue;
+        }
+        if (hasDecimal) {
+            printf("Ошибка: дробные числа недопустимы. Введите целое число: ");
+            continue;
+        }
+
+        char* endptr;
+        value = strtol(buffer, &endptr, 10);
+
+        if (*endptr != '\0') {
+            printf("Ошибка ввода. Найдены лишние символы. Повторите ввод: ");
+            continue;
+        }
+
+        break;
+    }
+    return value;
+}
